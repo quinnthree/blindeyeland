@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-display: "IM Fell English", "Georgia", serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ---- map markers ---- */
+.marker-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  margin: 0 auto;
+  cursor: pointer;
+}
+
+.marker-deep {
+  background: #e8a33d;
+  box-shadow: 0 0 14px 4px rgba(232, 163, 61, 0.75);
+  animation: marker-pulse 2.6s ease-in-out infinite;
+}
+
+.marker-quiet {
+  background: rgba(232, 163, 61, 0.35);
+  box-shadow: 0 0 6px 2px rgba(232, 163, 61, 0.25);
+  width: 9px;
+  height: 9px;
+}
+
+.marker-deep.marker-visited {
+  animation: none;
+  box-shadow: 0 0 8px 2px rgba(232, 163, 61, 0.45);
+}
+
+.marker-label {
+  display: block;
+  margin-top: 7px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f2e8d5;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.group:hover .marker-label {
+  opacity: 1;
+}
+
+@keyframes marker-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.65;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---- the train ---- */
+.train-wrap {
+  /* tracks run diagonally lower-left; the train follows roughly */
+  --tx0: 2%;
+  --ty0: 88%;
+  --tx1: 24%;
+  --ty1: 30%;
+}
+
+.train-svg {
+  position: absolute;
+  left: var(--tx0);
+  top: var(--ty0);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6)) blur(0.4px);
+  opacity: 0.9;
+  animation: train-run 11s linear forwards;
+}
+
+@keyframes train-run {
+  from {
+    transform: translate(0, 0) rotate(-58deg);
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.9;
+  }
+  94% {
+    opacity: 0.9;
+  }
+  to {
+    transform: translate(24vw, -58vh) rotate(-58deg);
+    opacity: 0;
+  }
+}
+
+/* ---- panels ---- */
+aside::-webkit-scrollbar {
+  width: 6px;
+}
+aside::-webkit-scrollbar-thumb {
+  background: rgba(232, 163, 61, 0.25);
+  border-radius: 3px;
 }
