@@ -7,7 +7,7 @@ import type { LocationData, CharacterData } from '@/lib/content';
 
 const VISITED_KEY = 'blindeye-visited';
 const INTRO_KEY = 'blindeye-intro-v2';
-const WORLD_SRC = '/art/world-golden.webp';
+const WORLD_SRC = '/art/world-golden.WEBP';
 const WORLD_W = 2016;
 const WORLD_H = 1152;
 
