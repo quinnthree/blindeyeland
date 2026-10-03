@@ -1,6 +1,6 @@
-import MapExperience from '@/components/MapExperience';
+import GameMap from '@/components/GameMap';
 import { locations, characters } from '@/lib/content';
 
 export default function Home() {
-  return <MapExperience locations={locations} characters={characters} />;
+  return <GameMap locations={locations} characters={characters} />;
 }

@@ -1,5 +1,7 @@
 # Blind Eye Land — Rebuild: Prototype Spec (DRAFT for approval)
 
+> **DIRECTION UPDATE — Oct 3, 2026 (Quinn):** The twilight folk-art map (direction B) is retired. The experience is now a **game-like explorable scene**: a little wanderer the visitor moves around the town (tap-to-move on mobile, WASD/arrows on desktop), follow camera, pinch/button zoom, proximity-based discovery, train on visible tracks. Art direction reverted to **a style like the original site**: warm golden-hour storybook Americana, dense painterly detail, much bigger scene. Zero baked-in text rule kept — all labels as overlays. Content (6 locations, 9 residents, fragments) carries over unchanged.
+
 Status: draft. Built from the Oct 2, 2026 AI review + live-site audit. Nothing here is final until Quinn approves.
 
 ## Objective of the prototype
