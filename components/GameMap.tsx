@@ -11,14 +11,14 @@ const WORLD_SRC = '/art/world-golden.WEBP';
 const WORLD_W = 2016;
 const WORLD_H = 1152;
 
-/** Marker + obstacle layout for the golden-hour town scene (fractions of world). */
-const LOC_POS: Record<string, { x: number; y: number }> = {
-  'little-opry': { x: 0.175, y: 0.52 },
-  'eyelid-boarding-house': { x: 0.455, y: 0.48 },
-  'chix-cafe': { x: 0.68, y: 0.44 },
-  'general-store': { x: 0.745, y: 0.57 },
-  'old-well': { x: 0.928, y: 0.8 },
-  'railroad-crossing': { x: 0.55, y: 0.77 },
+/** Marker positions + discovery radii (world px) for the golden-hour town scene. */
+const LOC_POS: Record<string, { x: number; y: number; r: number }> = {
+  'little-opry': { x: 0.175, y: 0.52, r: 220 },
+  'eyelid-boarding-house': { x: 0.455, y: 0.48, r: 280 },
+  'chix-cafe': { x: 0.68, y: 0.44, r: 170 },
+  'general-store': { x: 0.745, y: 0.57, r: 210 },
+  'old-well': { x: 0.928, y: 0.8, r: 190 },
+  'railroad-crossing': { x: 0.55, y: 0.77, r: 150 },
 };
 
 const OBSTACLES = [
@@ -27,7 +27,7 @@ const OBSTACLES = [
   { x: 0.68, y: 0.45, r: 0.048 }, // chix cafe
   { x: 0.745, y: 0.58, r: 0.065 }, // fill er up
   { x: 0.855, y: 0.4, r: 0.052 }, // church
-  { x: 0.928, y: 0.815, r: 0.038 }, // old well
+  { x: 0.928, y: 0.8, r: 0.058 }, // old well (roof + stone base)
 ];
 
 const WALK = { x0: 0.03, x1: 0.97, y0: 0.44, y1: 0.96 };
@@ -44,7 +44,6 @@ const TRACK_PTS = [
   { x: 1.04, y: 0.825 },
 ];
 
-const DISCOVER_R = 130;
 const WANDER_SPEED = 210;
 
 interface Pt {
@@ -653,12 +652,12 @@ export default function GameMap({
       }
       clampCam();
 
-      // discovery by proximity
+      // discovery by proximity (per-location radius clears its obstacle)
       for (const loc of locations) {
         const lp = LOC_POS[loc.slug];
         if (!lp || g.seen.has(loc.slug)) continue;
         const d = Math.hypot(g.wx - lp.x * WORLD_W, g.wy - lp.y * WORLD_H);
-        if (d < DISCOVER_R) uiRef.current.discover(loc.slug, loc.name);
+        if (d < lp.r) uiRef.current.discover(loc.slug, loc.name);
       }
 
       // train schedule — unlisted, as it should be
