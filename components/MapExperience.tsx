@@ -127,7 +127,7 @@ export default function MapExperience({
         }}
       >
         <img
-          src="/art/map-base.webp"
+          src="/art/IMG_7262.webp"
           alt="Painted map of Blind Eye at dusk"
           className="h-full w-full object-cover"
         />
