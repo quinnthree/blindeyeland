@@ -6,6 +6,8 @@ import type { Artifact } from './EyelidExterior';
 
 function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onTap: () => void }) {
   const [hov, setHov] = useState(false);
+  // each hotspot breathes a faint shimmer on its own slow rhythm — a whisper, not a marker
+  const [shimmerDelay] = useState(() => Math.random() * 9);
   return (
     <button
       aria-label={label}
@@ -18,10 +20,21 @@ function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onT
       className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer p-8"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
-      <span
-        className="block h-14 w-14 rounded-full transition-opacity duration-700"
-        style={{ opacity: hov ? 1 : 0, background: 'radial-gradient(circle, rgba(255,205,120,0.22) 0%, transparent 70%)' }}
-      />
+      <span className="relative block h-14 w-14">
+        <motion.span
+          className="absolute inset-0 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,205,120,0.32) 0%, transparent 70%)' }}
+          animate={{ opacity: [0, 0, 0.75, 0] }}
+          transition={{ duration: 9, repeat: Infinity, times: [0, 0.72, 0.86, 1], delay: shimmerDelay }}
+        />
+        <span
+          className="absolute inset-0 rounded-full transition-opacity duration-700"
+          style={{
+            opacity: hov ? 1 : 0,
+            background: 'radial-gradient(circle, rgba(255,205,120,0.28) 0%, transparent 70%)',
+          }}
+        />
+      </span>
     </button>
   );
 }
