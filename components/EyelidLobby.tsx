@@ -96,18 +96,28 @@ export default function EyelidLobby({ onEnterRoom, onBack }: { onEnterRoom: () =
       const t = (now - t0) / 1000;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, map.el.w, map.el.h);
-      // light beneath the far hallway door, after a while
+      // light beneath the far hallway door, after a while — bright enough
+      // to read against the sunlit hallway, with a slow breathing
       if (t > 15) {
         const dp = map.px(DOOR_LIGHT.x, DOOR_LIGHT.y);
         const fade = Math.min(1, (t - 15) / 4);
-        const pulse = 0.55 + 0.2 * Math.sin(t * 0.8);
-        const w = map.unit * 0.035;
+        const pulse = 0.75 + 0.25 * Math.sin(t * 1.1);
+        const w = map.unit * 0.045;
+        // soft bloom above the slit so it reads as lamplight
+        const bg = ctx.createRadialGradient(dp.x, dp.y - 6, 2, dp.x, dp.y - 6, map.unit * 0.03);
+        bg.addColorStop(0, `rgba(255,190,110,${0.28 * fade * pulse})`);
+        bg.addColorStop(1, 'rgba(255,190,110,0)');
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.arc(dp.x, dp.y - 6, map.unit * 0.03, 0, Math.PI * 2);
+        ctx.fill();
+        // the slit itself
         const g = ctx.createLinearGradient(dp.x - w, 0, dp.x + w, 0);
-        g.addColorStop(0, 'rgba(255,200,120,0)');
-        g.addColorStop(0.5, `rgba(255,200,120,${0.5 * fade * pulse})`);
-        g.addColorStop(1, 'rgba(255,200,120,0)');
+        g.addColorStop(0, 'rgba(255,190,110,0)');
+        g.addColorStop(0.5, `rgba(255,205,130,${0.95 * fade * pulse})`);
+        g.addColorStop(1, 'rgba(255,190,110,0)');
         ctx.fillStyle = g;
-        ctx.fillRect(dp.x - w, dp.y - 2, w * 2, 5);
+        ctx.fillRect(dp.x - w, dp.y - 3, w * 2, 7);
       }
       // the photo wall catches the light, now and then
       const gleamCycle = (t % 17) / 17;
