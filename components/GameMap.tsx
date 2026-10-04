@@ -14,34 +14,43 @@ const WORLD_H = 1152;
 /** Marker positions + discovery radii (world px) for the golden-hour town scene. */
 const LOC_POS: Record<string, { x: number; y: number; r: number }> = {
   'little-opry': { x: 0.175, y: 0.52, r: 220 },
-  'eyelid-boarding-house': { x: 0.455, y: 0.48, r: 280 },
+  'eyelid-boarding-house': { x: 0.455, y: 0.48, r: 300 },
   'chix-cafe': { x: 0.68, y: 0.44, r: 170 },
   'general-store': { x: 0.745, y: 0.57, r: 210 },
-  'old-well': { x: 0.928, y: 0.8, r: 190 },
-  'railroad-crossing': { x: 0.55, y: 0.77, r: 150 },
+  'old-well': { x: 0.9, y: 0.74, r: 190 },
+  'railroad-crossing': { x: 0.44, y: 0.71, r: 150 },
 };
 
 const OBSTACLES = [
-  { x: 0.175, y: 0.53, r: 0.07 }, // red barn
-  { x: 0.455, y: 0.52, r: 0.1 }, // boarding house
-  { x: 0.68, y: 0.45, r: 0.048 }, // chix cafe
-  { x: 0.745, y: 0.58, r: 0.065 }, // fill er up
-  { x: 0.855, y: 0.4, r: 0.052 }, // church
-  { x: 0.928, y: 0.8, r: 0.058 }, // old well (roof + stone base)
+  { x: 0.175, y: 0.53, r: 0.075 }, // red barn
+  { x: 0.455, y: 0.52, r: 0.13 }, // boarding house (covers roofline)
+  { x: 0.68, y: 0.45, r: 0.05 }, // chix cafe
+  { x: 0.745, y: 0.57, r: 0.075 }, // fill er up
+  { x: 0.855, y: 0.4, r: 0.07 }, // church
+  { x: 0.9, y: 0.77, r: 0.075 }, // old well (roof + stone base)
+  { x: 0.65, y: 0.66, r: 0.035 }, // red car
+  { x: 0.78, y: 0.73, r: 0.035 }, // blue car
+  { x: 0.84, y: 0.59, r: 0.04 }, // green truck
 ];
 
 const WALK = { x0: 0.03, x1: 0.97, y0: 0.44, y1: 0.96 };
 
-/** The railroad, as painted: sweeps in from the west, curves through town. */
+/** The railroad, traced from the painted rails: emerges from the misty pines
+    up top, sweeps past the barn, crosses the dirt road, runs the lower town. */
 const TRACK_PTS = [
-  { x: -0.02, y: 0.505 },
-  { x: 0.1, y: 0.53 },
-  { x: 0.22, y: 0.6 },
-  { x: 0.36, y: 0.69 },
-  { x: 0.52, y: 0.745 },
-  { x: 0.7, y: 0.775 },
+  { x: 0.15, y: 0.33 },
+  { x: 0.168, y: 0.375 },
+  { x: 0.174, y: 0.417 },
+  { x: 0.2, y: 0.52 },
+  { x: 0.235, y: 0.62 },
+  { x: 0.25, y: 0.686 },
+  { x: 0.32, y: 0.7 },
+  { x: 0.436, y: 0.705 },
+  { x: 0.5, y: 0.72 },
+  { x: 0.625, y: 0.755 },
+  { x: 0.75, y: 0.79 },
   { x: 0.88, y: 0.8 },
-  { x: 1.04, y: 0.825 },
+  { x: 1.04, y: 0.81 },
 ];
 
 const WANDER_SPEED = 210;
