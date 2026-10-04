@@ -6,21 +6,25 @@ import TownScene from './TownScene';
 import EyelidExterior from './EyelidExterior';
 import EyelidLobby from './EyelidLobby';
 import RoomSix from './RoomSix';
+import AnnaEncounter from './AnnaEncounter';
 import { ambience, type AmbienceScene } from '@/lib/ambience';
+import { getPresence, setPresence } from '@/lib/characters';
 
 const ROOM6_KEY = 'blindeye-cine-room6';
 
-type Phase = 'arrival' | 'town' | 'exterior' | 'lobby' | 'room6';
+type Phase = 'arrival' | 'town' | 'exterior' | 'lobby' | 'room6' | 'anna';
 
 const SCENE_SOUND: Record<Exclude<Phase, 'arrival'>, AmbienceScene> = {
   town: 'town',
   exterior: 'exterior',
   lobby: 'lobby',
   room6: 'room6',
+  anna: 'town',
 };
 
 /**
- * Cinematic Blind Eye: arrival → town → Eyelid exterior → lobby → Room #6 → town (changed).
+ * Cinematic Blind Eye: arrival → town → Eyelid exterior → lobby → Room #6
+ * → town (changed, and someone is waiting by the road).
  * No player character, no counters, no HUD. The town remembers.
  */
 export default function Cinematic() {
@@ -48,8 +52,17 @@ export default function Cinematic() {
     } catch {
       /* ignore */
     }
+    // consequence: Anna is now waiting by the road
+    setPresence('anna', 'present');
     go('town');
   }, [go]);
+
+  const finishAnna = useCallback(() => {
+    setPresence('anna', 'encountered');
+    go('town');
+  }, [go]);
+
+  const annaPresent = getPresence('anna') === 'present';
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-black text-[#f2e8d5]">
@@ -64,7 +77,12 @@ export default function Cinematic() {
             exit={{ opacity: 0 }}
             transition={{ duration: 1.2 }}
           >
-            <TownScene changed={room6} onEnterEyelid={() => go('exterior')} />
+            <TownScene
+              changed={room6}
+              annaPresent={annaPresent}
+              onEnterEyelid={() => go('exterior')}
+              onEncounterAnna={() => go('anna')}
+            />
           </motion.div>
         )}
         {phase === 'exterior' && (
@@ -103,6 +121,7 @@ export default function Cinematic() {
             <RoomSix onLeave={leaveRoom6} />
           </motion.div>
         )}
+        {phase === 'anna' && <AnnaEncounter key="anna" onDone={finishAnna} />}
       </AnimatePresence>
     </div>
   );

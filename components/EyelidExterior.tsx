@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import ArtifactOverlay from './ArtifactOverlay';
+import { motion, AnimatePresence } from 'framer-motion';
+import RegisterView from './RegisterView';
 import { ambience } from '@/lib/ambience';
+import { setPresence } from '@/lib/characters';
 
 export interface Artifact {
   title: string;
@@ -34,7 +35,7 @@ function Spot({
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer p-8"
+      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer p-10"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span className="relative block h-14 w-14">
@@ -56,11 +57,6 @@ function Spot({
   );
 }
 
-const REGISTER_ARTIFACT: Artifact = {
-  title: 'Porch register',
-  body: `The book lies open on the porch table, as if someone stepped away mid-sentence.\n\nA. d'Konda — 3\nL. Ledbetter — 4\nThe Fairlys — 5\n\n6 —\n\nThe entry for 6 is scratched out so hard the paper tore.`,
-};
-
 export default function EyelidExterior({
   onEnter,
   onBack,
@@ -68,7 +64,7 @@ export default function EyelidExterior({
   onEnter: () => void;
   onBack: () => void;
 }) {
-  const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const flashNote = (t: string) => {
@@ -104,7 +100,7 @@ export default function EyelidExterior({
       ))}
 
       <Spot x={0.6} y={0.62} label="The screen door" onTap={() => { ambience.screenDoor(); window.setTimeout(onEnter, 450); }} />
-      <Spot x={0.82} y={0.68} label="The register" onTap={() => setArtifact(REGISTER_ARTIFACT)} />
+      <Spot x={0.82} y={0.68} label="The register" onTap={() => { setPresence('anna', 'mentioned'); setRegisterOpen(true); }} />
       <Spot x={0.42} y={0.3} label="The upstairs window" onTap={() => flashNote('The curtain doesn\u2019t move. The room behind it is dark.')} />
       <Spot x={0.2} y={0.7} label="The rocking chair" onTap={() => flashNote('The chair is still rocking, though the air is still.')} />
 
@@ -126,7 +122,9 @@ export default function EyelidExterior({
         ← town
       </button>
 
-      <ArtifactOverlay artifact={artifact} onClose={() => setArtifact(null)} />
+      <AnimatePresence>
+        {registerOpen && <RegisterView variant="porch" onClose={() => setRegisterOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

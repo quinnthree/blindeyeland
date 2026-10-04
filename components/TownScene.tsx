@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ambience } from '@/lib/ambience';
+import { useStagedCues } from '@/lib/cues';
 
 const WORLD_SRC = '/art/world-golden.WEBP';
 const WORLD_W = 2016;
@@ -10,19 +11,28 @@ const WORLD_H = 1152;
 /** Boarding house on the town painting (fractions). */
 const EYELID = { x: 0.455, y: 0.47 };
 const EYELID_WINDOW = { x: 0.494, y: 0.42 };
+const EYELID_PORCH = { x: 0.43, y: 0.56 };
 /** Chimney tops on the boarding house (fractions). */
 const CHIMNEYS = [
   { x: 0.538, y: 0.368 },
   { x: 0.39, y: 0.332 },
 ];
+/** Where Anna is seen after Room #6 (fractions). */
+const ANNA_SPOT = { x: 0.32, y: 0.82 };
+
+const FOLLOW_HINT_KEY = 'blindeye-cine-followhint';
 
 
 export default function TownScene({
   changed,
+  annaPresent,
   onEnterEyelid,
+  onEncounterAnna,
 }: {
   changed: boolean;
+  annaPresent: boolean;
   onEnterEyelid: () => void;
+  onEncounterAnna: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,7 +40,43 @@ export default function TownScene({
   const [ready, setReady] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [muted, setMuted] = useState(ambience.muted);
-  const [hint, setHint] = useState(false);
+  const [followHint, setFollowHint] = useState(false);
+  // progressive invitations: the building calls attention to itself in stages
+  const eyelidStage = useStagedCues([14, 26, 38, 50]);
+  const annaStage = useStagedCues([10, 24, 40], annaPresent);
+  const stageRef = useRef({ eyelid: 0, anna: 0 });
+  stageRef.current.eyelid = eyelidStage;
+  stageRef.current.anna = annaStage;
+  const annaPresentRef = useRef(annaPresent);
+  annaPresentRef.current = annaPresent;
+
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = !!localStorage.getItem(FOLLOW_HINT_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (seen) return;
+    const t1 = window.setTimeout(() => setFollowHint(true), 9000);
+    const t2 = window.setTimeout(() => {
+      setFollowHint(false);
+      try {
+        localStorage.setItem(FOLLOW_HINT_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+    }, 20000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+
+  // a faint rustle when Anna's invitation deepens
+  useEffect(() => {
+    if (annaStage === 3) ambience.rustle();
+  }, [annaStage]);
   const st = useRef({
     panX: 0,
     panY: 0,
@@ -39,10 +85,10 @@ export default function TownScene({
     zoom: 1.12,
     tZoom: 1.12,
     time: 0,
-    cueT: 0,
-    cueOn: false,
     motes: [] as { x: number; y: number; vx: number; vy: number; r: number; a: number }[],
     chimney: [] as { x: number; y: number; life: number; ch: number }[],
+    cueDust: [] as { x: number; y: number; life: number }[],
+    cueDustT: 0,
   });
 
   useEffect(() => {
@@ -84,8 +130,6 @@ export default function TownScene({
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
-    const hintTimer = window.setTimeout(() => setHint(true), 14000);
-    const hintOff = window.setTimeout(() => setHint(false), 21000);
 
     // --- camera input: drag to pan (limited), pinch to zoom (limited) ---
     const pointers = new Map<number, { x: number; y: number; sx: number; sy: number }>();
@@ -145,6 +189,14 @@ export default function TownScene({
         const dy = w.y - EYELID.y * WORLD_H;
         if (Math.hypot(dx, dy) < 190) {
           setPushing(true);
+          return;
+        }
+        if (annaPresentRef.current) {
+          const ax = w.x - ANNA_SPOT.x * WORLD_W;
+          const ay = w.y - ANNA_SPOT.y * WORLD_H;
+          if (Math.hypot(ax, ay) < 170) {
+            onEncounterAnna();
+          }
         }
       }
     };
@@ -174,9 +226,22 @@ export default function TownScene({
         s.chimney.push({ x: WORLD_W * CHIMNEYS[ch].x, y: WORLD_H * CHIMNEYS[ch].y, life: 1, ch });
       }
       s.chimney = s.chimney.filter((p) => (p.life -= dt * 0.25) > 0);
-      // eyelid cue
-      s.cueT += dt;
-      if (s.cueT > 18) s.cueOn = true;
+      // Anna's invitation: faint dust where something moved, on its own rhythm
+      const aStage = annaPresentRef.current ? stageRef.current.anna : 0;
+      if (aStage >= 1) {
+        s.cueDustT -= dt;
+        if (s.cueDustT <= 0) {
+          s.cueDustT = aStage >= 3 ? 4 : 7;
+          for (let i = 0; i < 3; i++) {
+            s.cueDust.push({
+              x: WORLD_W * ANNA_SPOT.x + (Math.random() - 0.5) * 60,
+              y: WORLD_H * ANNA_SPOT.y + (Math.random() - 0.5) * 24,
+              life: 1,
+            });
+          }
+        }
+      }
+      s.cueDust = s.cueDust.filter((p) => (p.life -= dt * 0.5) > 0);
       // motes
       for (const m of s.motes) {
         m.x += m.vx * dt;
@@ -219,11 +284,17 @@ export default function TownScene({
       }
       ctx.globalAlpha = 1;
 
-      // eyelid window cue — a light that wasn't on before
-      if (s.cueOn || changed) {
+      // eyelid invitation, in stages: light → flicker → porch → stronger breath
+      const eStage = stageRef.current.eyelid;
+      if (eStage >= 1 || changed) {
         const im2 = imgRef.current;
         if (im2 && im2.complete && im2.naturalWidth > 0) {
-          const pulse = changed ? 0.85 : 0.45 + 0.35 * Math.sin(s.time * 1.4);
+          let pulse = changed ? 0.85 : 0.45 + 0.35 * Math.sin(s.time * 1.4);
+          if (eStage === 2 && !changed) {
+            // the light flickers once, as if someone passed it
+            const fl = Math.sin(s.time * 9);
+            if (fl > 0.86) pulse *= 0.3;
+          }
           const wx = EYELID_WINDOW.x * WORLD_W;
           const wy = EYELID_WINDOW.y * WORLD_H;
           const g = ctx.createRadialGradient(wx, wy, 2, wx, wy, 46);
@@ -233,16 +304,52 @@ export default function TownScene({
           ctx.beginPath();
           ctx.arc(wx, wy, 46, 0, Math.PI * 2);
           ctx.fill();
-          // a breath of warmth over the house every so often — the faintest invitation
+          if (eStage >= 3 && !changed) {
+            // the porch light comes on
+            const px = EYELID_PORCH.x * WORLD_W;
+            const py = EYELID_PORCH.y * WORLD_H;
+            const pg = ctx.createRadialGradient(px, py, 2, px, py, 70);
+            const pp = 0.5 + 0.2 * Math.sin(s.time * 1.1);
+            pg.addColorStop(0, `rgba(255,200,120,${0.5 * pp})`);
+            pg.addColorStop(1, 'rgba(255,200,120,0)');
+            ctx.fillStyle = pg;
+            ctx.beginPath();
+            ctx.arc(px, py, 70, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // a breath of warmth over the house — the faintest invitation, stronger late
           const breath = Math.max(0, Math.sin(s.time * 0.7));
+          const strength = eStage >= 4 || changed ? 0.16 : 0.1;
           const bx = EYELID.x * WORLD_W;
           const by = EYELID.y * WORLD_H;
           const bg2 = ctx.createRadialGradient(bx, by, 20, bx, by, 190);
-          bg2.addColorStop(0, `rgba(255,205,130,${0.1 * breath * breath})`);
+          bg2.addColorStop(0, `rgba(255,205,130,${strength * breath * breath})`);
           bg2.addColorStop(1, 'rgba(255,205,130,0)');
           ctx.fillStyle = bg2;
           ctx.beginPath();
           ctx.arc(bx, by, 190, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Anna's invitation: dust where something moved
+      if (aStage >= 1) {
+        for (const p of s.cueDust) {
+          ctx.globalAlpha = Math.max(0, p.life) * (aStage >= 3 ? 0.4 : 0.25);
+          ctx.fillStyle = '#cbb98f';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y - (1 - p.life) * 18, 3 + (1 - p.life) * 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        if (aStage >= 2) {
+          // a soft shadow, there and not there
+          const shx = ANNA_SPOT.x * WORLD_W;
+          const shy = ANNA_SPOT.y * WORLD_H;
+          const shimmer = 0.5 + 0.5 * Math.sin(s.time * 0.9);
+          ctx.fillStyle = `rgba(30,22,14,${0.14 * shimmer})`;
+          ctx.beginPath();
+          ctx.ellipse(shx, shy, 26, 10, 0, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -262,8 +369,6 @@ export default function TownScene({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      clearTimeout(hintTimer);
-      clearTimeout(hintOff);
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
@@ -300,17 +405,17 @@ export default function TownScene({
         )}
       </AnimatePresence>
 
-      {/* one quiet hint, then nothing */}
+      {/* one quiet lesson, then nothing */}
       <AnimatePresence>
-        {hint && !pushing && (
+        {followHint && !pushing && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.6 }}
-            className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 font-serif text-sm italic tracking-wide text-white/45"
+            className="pointer-events-none absolute bottom-10 left-1/2 z-10 w-max max-w-[92%] -translate-x-1/2 text-center font-serif text-[15px] italic tracking-wide text-white/55"
           >
-            Look around.
+            If something changes, follow it.
           </motion.p>
         )}
       </AnimatePresence>

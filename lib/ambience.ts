@@ -239,6 +239,37 @@ class Ambience {
     }
   }
 
+  /** Dim the whole world a little (character encounters). Respects mute. */
+  setDim(dimmed: boolean) {
+    if (!this.ctx || !this.master || this.muted) return;
+    this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.master.gain.linearRampToValueAtTime(dimmed ? 0.28 : 0.9, this.ctx.currentTime + 1.5);
+  }
+
+  /** Soft dry rustle — leaves, grass, something small moving. */
+  rustle() {
+    if (!this.ctx || !this.master || !this.noise) return;
+    const c = this.ctx;
+    [0, 0.28].forEach((delay, i) => {
+      const t0 = c.currentTime + delay;
+      const src = c.createBufferSource();
+      src.buffer = this.noise;
+      const f = c.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 2600;
+      f.Q.value = 1.2;
+      const g = c.createGain();
+      const peak = i === 0 ? 0.035 : 0.02;
+      g.gain.setValueAtTime(peak, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+      src.connect(f);
+      f.connect(g);
+      g.connect(this.master!);
+      src.start(t0);
+      src.stop(t0 + 0.4);
+    });
+  }
+
   /** Distant train whistle: two detuned tones, mournful. */
   whistle() {
     if (!this.ctx || !this.master) return;

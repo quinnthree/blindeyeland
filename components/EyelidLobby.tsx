@@ -1,9 +1,11 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import RegisterView from './RegisterView';
 import ArtifactOverlay from './ArtifactOverlay';
 import type { Artifact } from './EyelidExterior';
 import { ambience } from '@/lib/ambience';
+import { setPresence } from '@/lib/characters';
 
 function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onTap: () => void }) {
   const [hov, setHov] = useState(false);
@@ -18,7 +20,7 @@ function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onT
       }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer p-8"
+      className="absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer p-10"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span className="relative block h-14 w-14">
@@ -40,11 +42,6 @@ function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onT
   );
 }
 
-const REGISTER: Artifact = {
-  title: 'Guest register',
-  body: `The pages go back years. The handwriting changes; the ink doesn't.\n\nA. d'Konda — 3, "snakes in the bathtub again"\nL. Ledbetter — 4\nThe Fairlys — 5, "do not move them"\n\n6 —\n\nBeneath the scratched-out name, in a different hand:\n"Do not assign 6."`,
-};
-
 const PHOTOS: Artifact = {
   title: 'Photographs',
   body: `A wall of framed photographs, all a little faded.\n\nA wedding. Every face is turned away from the camera.\n\nA county fair. The Ferris wheel is empty, mid-spin.\n\nA porch with six rocking chairs. Five are occupied.`,
@@ -57,6 +54,7 @@ const KEYS: Artifact = {
 
 export default function EyelidLobby({ onEnterRoom, onBack }: { onEnterRoom: () => void; onBack: () => void }) {
   const [artifact, setArtifact] = useState<Artifact | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const flashNote = (t: string) => {
@@ -91,7 +89,7 @@ export default function EyelidLobby({ onEnterRoom, onBack }: { onEnterRoom: () =
         />
       ))}
 
-      <Spot x={0.42} y={0.72} label="The guest register" onTap={() => setArtifact(REGISTER)} />
+      <Spot x={0.42} y={0.72} label="The guest register" onTap={() => { setPresence('anna', 'mentioned'); setRegisterOpen(true); }} />
       <Spot x={0.08} y={0.3} label="The photographs" onTap={() => setArtifact(PHOTOS)} />
       <Spot x={0.42} y={0.42} label="The keys" onTap={() => setArtifact(KEYS)} />
       <Spot
@@ -126,6 +124,9 @@ export default function EyelidLobby({ onEnterRoom, onBack }: { onEnterRoom: () =
       </button>
 
       <ArtifactOverlay artifact={artifact} onClose={() => setArtifact(null)} />
+      <AnimatePresence>
+        {registerOpen && <RegisterView variant="lobby" onClose={() => setRegisterOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
