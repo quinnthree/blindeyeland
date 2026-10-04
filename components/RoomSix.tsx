@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useCoverMap } from '@/lib/useCoverMap';
 import { motion, AnimatePresence } from 'framer-motion';
 import ArtifactOverlay from './ArtifactOverlay';
 import type { Artifact } from './EyelidExterior';
@@ -8,42 +9,6 @@ const IMG_SRC = '/art/room-six.webp';
 /** Hotspot positions in IMAGE fractions (object-cover crops on phones). */
 const CLOCK = { x: 0.546, y: 0.614 };
 const MELON = { x: 0.608, y: 0.628 };
-
-/** Maps image fractions to element pixels under object-cover. */
-function useCoverMap(src: string, elRef: React.RefObject<HTMLDivElement | null>) {
-  const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
-  const [el, setEl] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    const im = new Image();
-    im.onload = () => setNat({ w: im.naturalWidth, h: im.naturalHeight });
-    im.src = src;
-  }, [src ]);
-  useEffect(() => {
-    const elx = elRef.current;
-    if (!elx) return;
-    const measure = () => {
-      const r = elx.getBoundingClientRect();
-      setEl({ w: r.width, h: r.height });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(elx);
-    return () => ro.disconnect();
-  }, [elRef]);
-  return useMemo(() => {
-    if (!nat || !el) return null;
-    const scale = Math.max(el.w / nat.w, el.h / nat.h);
-    const dw = nat.w * scale;
-    const dh = nat.h * scale;
-    const ox = (el.w - dw) / 2;
-    const oy = (el.h - dh) / 2;
-    return {
-      el,
-      px: (fx: number, fy: number) => ({ x: fx * dw + ox, y: fy * dh + oy }),
-      unit: dw, // one image-width in px
-    };
-  }, [nat, el]);
-}
 
 function Spot({ x, y, label, onTap }: { x: number; y: number; label: string; onTap: () => void }) {
   const [hov, setHov] = useState(false);
@@ -126,22 +91,19 @@ export default function RoomSix({ onLeave }: { onLeave: () => void }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, map.el.w, map.el.h);
 
-      // clock face: cover the painted hands with a clean face, then run backward
+      // clock: keep the painted face; only the hands are ours.
+      // a feathered patch in the face's tone softens the painted hands underneath,
+      // then thin dark hands turn backward over it.
       const c = map.px(CLOCK.x, CLOCK.y);
       const R = map.unit * 0.031;
-      ctx.fillStyle = '#d9c9a4';
+      const patch = ctx.createRadialGradient(c.x, c.y, R * 0.2, c.x, c.y, R * 0.98);
+      patch.addColorStop(0, 'rgba(217,201,164,0.97)');
+      patch.addColorStop(0.75, 'rgba(217,201,164,0.9)');
+      patch.addColorStop(1, 'rgba(217,201,164,0)');
+      ctx.fillStyle = patch;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, R, 0, Math.PI * 2);
+      ctx.arc(c.x, c.y, R * 0.98, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(60,45,25,0.5)';
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(c.x + Math.cos(a) * R * 0.82, c.y + Math.sin(a) * R * 0.82);
-        ctx.lineTo(c.x + Math.cos(a) * R * 0.95, c.y + Math.sin(a) * R * 0.95);
-        ctx.stroke();
-      }
       const hand = (len: number, ang: number, w: number, col: string) => {
         ctx.strokeStyle = col;
         ctx.lineWidth = w;
@@ -159,6 +121,34 @@ export default function RoomSix({ onLeave }: { onLeave: () => void }) {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 2.5, 0, Math.PI * 2);
       ctx.fill();
+
+      // the photograph catches light, once in a while
+      const gleamCycle = (t % 19) / 19;
+      if (gleamCycle > 0.86) {
+        const gp = map.px(0.185, 0.3);
+        const ga = Math.sin(((gleamCycle - 0.86) / 0.14) * Math.PI) * 0.22;
+        const gg = ctx.createRadialGradient(gp.x, gp.y, 2, gp.x, gp.y, map.unit * 0.05);
+        gg.addColorStop(0, `rgba(255,240,200,${ga})`);
+        gg.addColorStop(1, 'rgba(255,240,200,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath();
+        ctx.arc(gp.x, gp.y, map.unit * 0.05, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // the window light swells, as if something outside passed
+      const swellCycle = (t % 15) / 15;
+      if (swellCycle > 0.8) {
+        const wp = map.px(0.52, 0.38);
+        const wa = Math.sin(((swellCycle - 0.8) / 0.2) * Math.PI) * 0.14;
+        const wg = ctx.createRadialGradient(wp.x, wp.y, 4, wp.x, wp.y, map.unit * 0.09);
+        wg.addColorStop(0, `rgba(255,244,214,${wa})`);
+        wg.addColorStop(1, 'rgba(255,244,214,0)');
+        ctx.fillStyle = wg;
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, map.unit * 0.09, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // the watermelon, once noticed
       if (melon > 0.01) {

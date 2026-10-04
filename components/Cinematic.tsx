@@ -7,6 +7,7 @@ import EyelidExterior from './EyelidExterior';
 import EyelidLobby from './EyelidLobby';
 import RoomSix from './RoomSix';
 import AnnaEncounter from './AnnaEncounter';
+import QaOverlay, { qaReset } from './QaOverlay';
 import { ambience, type AmbienceScene } from '@/lib/ambience';
 import { getPresence, setPresence } from '@/lib/characters';
 
@@ -30,10 +31,23 @@ const SCENE_SOUND: Record<Exclude<Phase, 'arrival'>, AmbienceScene> = {
 export default function Cinematic() {
   const [phase, setPhase] = useState<Phase>('arrival');
   const [room6, setRoom6] = useState(false);
+  const [qa, setQa] = useState(false);
 
   useEffect(() => {
     try {
       if (localStorage.getItem(ROOM6_KEY)) setRoom6(true);
+    } catch {
+      /* ignore */
+    }
+    // dev QA: ?qa-reset clears all experience state; ?qa shows diagnostics
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.has('qa-reset')) {
+        qaReset();
+        window.location.replace(window.location.pathname);
+        return;
+      }
+      if (q.has('qa')) setQa(true);
     } catch {
       /* ignore */
     }
@@ -123,6 +137,7 @@ export default function Cinematic() {
         )}
         {phase === 'anna' && <AnnaEncounter key="anna" onDone={finishAnna} />}
       </AnimatePresence>
+      {qa && <QaOverlay />}
     </div>
   );
 }

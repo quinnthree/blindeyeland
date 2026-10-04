@@ -11,7 +11,7 @@ const WORLD_H = 1152;
 /** Boarding house on the town painting (fractions). */
 const EYELID = { x: 0.455, y: 0.47 };
 const EYELID_WINDOW = { x: 0.494, y: 0.42 };
-const EYELID_PORCH = { x: 0.43, y: 0.56 };
+const EYELID_WINDOW2 = { x: 0.404, y: 0.423 };
 /** Chimney tops on the boarding house (fractions). */
 const CHIMNEYS = [
   { x: 0.538, y: 0.368 },
@@ -42,11 +42,10 @@ export default function TownScene({
   const [muted, setMuted] = useState(ambience.muted);
   const [followHint, setFollowHint] = useState(false);
   // progressive invitations: the building calls attention to itself in stages
-  const eyelidStage = useStagedCues([14, 26, 38, 50]);
-  const annaStage = useStagedCues([10, 24, 40], annaPresent);
-  const stageRef = useRef({ eyelid: 0, anna: 0 });
-  stageRef.current.eyelid = eyelidStage;
-  stageRef.current.anna = annaStage;
+  // stage 1: a window illuminates · stage 2: someone passes it · stage 3: a second window wakes
+  const eyelidStage = useStagedCues([14, 26, 38]);
+  const stageRef = useRef(0);
+  stageRef.current = eyelidStage;
   const annaPresentRef = useRef(annaPresent);
   annaPresentRef.current = annaPresent;
 
@@ -73,10 +72,6 @@ export default function TownScene({
     };
   }, []);
 
-  // a faint rustle when Anna's invitation deepens
-  useEffect(() => {
-    if (annaStage === 3) ambience.rustle();
-  }, [annaStage]);
   const st = useRef({
     panX: 0,
     panY: 0,
@@ -87,8 +82,7 @@ export default function TownScene({
     time: 0,
     motes: [] as { x: number; y: number; vx: number; vy: number; r: number; a: number }[],
     chimney: [] as { x: number; y: number; life: number; ch: number }[],
-    cueDust: [] as { x: number; y: number; life: number }[],
-    cueDustT: 0,
+    sil: { active: false, t: 0, passes: 0, cool: 0, started: false },
   });
 
   useEffect(() => {
@@ -226,22 +220,28 @@ export default function TownScene({
         s.chimney.push({ x: WORLD_W * CHIMNEYS[ch].x, y: WORLD_H * CHIMNEYS[ch].y, life: 1, ch });
       }
       s.chimney = s.chimney.filter((p) => (p.life -= dt * 0.25) > 0);
-      // Anna's invitation: faint dust where something moved, on its own rhythm
-      const aStage = annaPresentRef.current ? stageRef.current.anna : 0;
-      if (aStage >= 1) {
-        s.cueDustT -= dt;
-        if (s.cueDustT <= 0) {
-          s.cueDustT = aStage >= 3 ? 4 : 7;
-          for (let i = 0; i < 3; i++) {
-            s.cueDust.push({
-              x: WORLD_W * ANNA_SPOT.x + (Math.random() - 0.5) * 60,
-              y: WORLD_H * ANNA_SPOT.y + (Math.random() - 0.5) * 24,
-              life: 1,
-            });
+      // someone passes the lit window, twice, when the invitation deepens
+      const eStg = stageRef.current;
+      if (eStg >= 2 && !s.sil.started) {
+        s.sil.started = true;
+        s.sil.cool = 1.5;
+      }
+      if (s.sil.started && s.sil.passes < 2) {
+        if (!s.sil.active) {
+          s.sil.cool -= dt;
+          if (s.sil.cool <= 0) {
+            s.sil.active = true;
+            s.sil.t = 0;
+          }
+        } else {
+          s.sil.t += dt;
+          if (s.sil.t > 3.2) {
+            s.sil.active = false;
+            s.sil.passes++;
+            s.sil.cool = 9;
           }
         }
       }
-      s.cueDust = s.cueDust.filter((p) => (p.life -= dt * 0.5) > 0);
       // motes
       for (const m of s.motes) {
         m.x += m.vx * dt;
@@ -284,74 +284,100 @@ export default function TownScene({
       }
       ctx.globalAlpha = 1;
 
-      // eyelid invitation, in stages: light → flicker → porch → stronger breath
-      const eStage = stageRef.current.eyelid;
+      // eyelid invitation, in stages: a window illuminates → someone passes it
+      // → a second window wakes. No markers, no magnification — only light and shadow.
+      const eStage = stageRef.current;
       if (eStage >= 1 || changed) {
         const im2 = imgRef.current;
         if (im2 && im2.complete && im2.naturalWidth > 0) {
-          let pulse = changed ? 0.85 : 0.45 + 0.35 * Math.sin(s.time * 1.4);
-          if (eStage === 2 && !changed) {
-            // the light flickers once, as if someone passed it
-            const fl = Math.sin(s.time * 9);
-            if (fl > 0.86) pulse *= 0.3;
-          }
+          const pulse = changed ? 0.85 : 0.45 + 0.35 * Math.sin(s.time * 1.4);
           const wx = EYELID_WINDOW.x * WORLD_W;
           const wy = EYELID_WINDOW.y * WORLD_H;
-          const g = ctx.createRadialGradient(wx, wy, 2, wx, wy, 46);
-          g.addColorStop(0, `rgba(255,196,110,${0.75 * pulse})`);
+          const g = ctx.createRadialGradient(wx, wy, 2, wx, wy, 40);
+          g.addColorStop(0, `rgba(255,196,110,${0.7 * pulse})`);
           g.addColorStop(1, 'rgba(255,196,110,0)');
           ctx.fillStyle = g;
           ctx.beginPath();
-          ctx.arc(wx, wy, 46, 0, Math.PI * 2);
+          ctx.arc(wx, wy, 40, 0, Math.PI * 2);
           ctx.fill();
-          if (eStage >= 3 && !changed) {
-            // the porch light comes on
-            const px = EYELID_PORCH.x * WORLD_W;
-            const py = EYELID_PORCH.y * WORLD_H;
-            const pg = ctx.createRadialGradient(px, py, 2, px, py, 70);
-            const pp = 0.5 + 0.2 * Math.sin(s.time * 1.1);
-            pg.addColorStop(0, `rgba(255,200,120,${0.5 * pp})`);
-            pg.addColorStop(1, 'rgba(255,200,120,0)');
-            ctx.fillStyle = pg;
+          // someone passes the lit window
+          if (s.sil.active) {
+            const prog = s.sil.t / 3.2;
+            const sx = wx - 34 + prog * 68;
+            const sg = ctx.createRadialGradient(sx, wy, 2, sx, wy, 22);
+            sg.addColorStop(0, 'rgba(24,16,10,0.55)');
+            sg.addColorStop(1, 'rgba(24,16,10,0)');
+            ctx.fillStyle = sg;
             ctx.beginPath();
-            ctx.arc(px, py, 70, 0, Math.PI * 2);
+            ctx.ellipse(sx, wy, 14, 22, 0, 0, Math.PI * 2);
             ctx.fill();
           }
-          // a breath of warmth over the house — the faintest invitation, stronger late
-          const breath = Math.max(0, Math.sin(s.time * 0.7));
-          const strength = eStage >= 4 || changed ? 0.16 : 0.1;
-          const bx = EYELID.x * WORLD_W;
-          const by = EYELID.y * WORLD_H;
-          const bg2 = ctx.createRadialGradient(bx, by, 20, bx, by, 190);
-          bg2.addColorStop(0, `rgba(255,205,130,${strength * breath * breath})`);
-          bg2.addColorStop(1, 'rgba(255,205,130,0)');
-          ctx.fillStyle = bg2;
-          ctx.beginPath();
-          ctx.arc(bx, by, 190, 0, Math.PI * 2);
-          ctx.fill();
+          if (eStage >= 3 && !changed) {
+            // a second window wakes upstairs
+            const w2x = EYELID_WINDOW2.x * WORLD_W;
+            const w2y = EYELID_WINDOW2.y * WORLD_H;
+            const p2 = 0.4 + 0.25 * Math.sin(s.time * 1.1 + 2);
+            const g2 = ctx.createRadialGradient(w2x, w2y, 2, w2x, w2y, 34);
+            g2.addColorStop(0, `rgba(255,196,110,${0.6 * p2})`);
+            g2.addColorStop(1, 'rgba(255,196,110,0)');
+            ctx.fillStyle = g2;
+            ctx.beginPath();
+            ctx.arc(w2x, w2y, 34, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
-      // Anna's invitation: dust where something moved
-      if (aStage >= 1) {
-        for (const p of s.cueDust) {
-          ctx.globalAlpha = Math.max(0, p.life) * (aStage >= 3 ? 0.4 : 0.25);
-          ctx.fillStyle = '#cbb98f';
+      // Anna's signal: a watermelon by the road, and snakes arranged beside it
+      // in a deliberate pattern. Deterministic — it is simply there after Room #6.
+      if (annaPresentRef.current) {
+        const ax = ANNA_SPOT.x * WORLD_W;
+        const ay = ANNA_SPOT.y * WORLD_H;
+        // soft ground shadow
+        ctx.fillStyle = 'rgba(30,22,14,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(ax, ay + 12, 52, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // snakes in a loose figure-eight
+        ctx.strokeStyle = '#3d4a2b';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(ax - 62, ay + 6);
+        ctx.bezierCurveTo(ax - 40, ay - 22, ax - 12, ay - 22, ax, ay + 2);
+        ctx.bezierCurveTo(ax + 12, ay + 26, ax + 42, ay + 26, ax + 64, ay - 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#55663a';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(ax - 62, ay + 6);
+        ctx.bezierCurveTo(ax - 40, ay - 22, ax - 12, ay - 22, ax, ay + 2);
+        ctx.bezierCurveTo(ax + 12, ay + 26, ax + 42, ay + 26, ax + 64, ay - 2);
+        ctx.stroke();
+        // second snake, coiled
+        ctx.strokeStyle = '#3d4a2b';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(ax + 34, ay - 26, 13, 0.4, Math.PI * 2.2);
+        ctx.stroke();
+        // the watermelon
+        ctx.fillStyle = '#2e4a2a';
+        ctx.beginPath();
+        ctx.ellipse(ax - 34, ay - 4, 20, 15, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(190,220,150,0.6)';
+        ctx.lineWidth = 2;
+        for (const off of [-0.4, 0, 0.4]) {
           ctx.beginPath();
-          ctx.arc(p.x, p.y - (1 - p.life) * 18, 3 + (1 - p.life) * 7, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.ellipse(ax - 34, ay - 4, 20 * (1 - Math.abs(off)), 13, -0.1, 0, Math.PI * 2);
+          ctx.stroke();
         }
-        ctx.globalAlpha = 1;
-        if (aStage >= 2) {
-          // a soft shadow, there and not there
-          const shx = ANNA_SPOT.x * WORLD_W;
-          const shy = ANNA_SPOT.y * WORLD_H;
-          const shimmer = 0.5 + 0.5 * Math.sin(s.time * 0.9);
-          ctx.fillStyle = `rgba(30,22,14,${0.14 * shimmer})`;
-          ctx.beginPath();
-          ctx.ellipse(shx, shy, 26, 10, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        ctx.strokeStyle = '#4a6a3a';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(ax - 26, ay - 17);
+        ctx.quadraticCurveTo(ax - 22, ay - 23, ax - 17, ay - 22);
+        ctx.stroke();
       }
       ctx.restore();
 
